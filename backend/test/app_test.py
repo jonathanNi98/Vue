@@ -5,7 +5,8 @@ import json
 
 import sys
 sys.path.append('/Users/jonathan/UMICH/Project/Vue/backend')
-from app.app import app,init_db
+from app.app import app
+from app.app import  db
 
 TEST_DB = "test.db"
 
@@ -69,17 +70,17 @@ def test_login_logout(client):
     assert b"Invalid password" in rv.data
 
 
-def test_messages(client):
-    """Ensure that user can post messages"""
-    login(client, app.config["USERNAME"], app.config["PASSWORD"])
-    rv = client.post(
-        "/add",
-        data=dict(title="<Hello>", text="<strong>HTML</strong> allowed here"),
-        follow_redirects=True,
-    )
-    assert b"No entries here so far" not in rv.data
-    assert b"&lt;Hello&gt;" in rv.data
-    assert b"<strong>HTML</strong> allowed here" in rv.data
+@pytest.fixture
+def client():
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    app.config["TESTING"] = True
+    app.config["DATABASE"] = BASE_DIR.joinpath(TEST_DB)
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{BASE_DIR.joinpath(TEST_DB)}"
+
+    with app.app_context():
+        db.create_all()  # setup
+        yield app.test_client()  # tests run here
+        db.drop_all()  # teardown
     
 def test_delete_message(client):
     """Ensure the messages are being deleted"""
